@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RetinAI — Navigation Architecture v3</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:   #0a0e1a;
+    --navy2:  #111827;
+    --navy3:  #161d2e;
+    --teal:   #00c2b2;
+    --teal2:  #00e5d4;
+    --white:  #f0f4ff;
+    --muted:  #8b9bbf;
+    --border: rgba(255,255,255,0.07);
+    --glow:   0 0 50px rgba(0,194,178,0.12);
+  }
+
+  html, body { background: var(--navy); min-height: 100vh; font-family: 'DM Sans', sans-serif; color: var(--white); }
+
+  /* ── HERO ─────────────────────────────────────── */
+  .hero {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,194,178,0.07) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 80% 80%, rgba(0,100,200,0.05) 0%, transparent 70%),
+      var(--navy);
+    padding: 0 2rem; padding-top: 80px; position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 36px 36px; pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(0,194,178,0.1); border: 1px solid rgba(0,194,178,0.25);
+    border-radius: 100px; padding: 6px 16px;
+    font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal2); margin-bottom: 28px;
+  }
+  .hero-badge span { width:6px; height:6px; background:var(--teal2); border-radius:50%; animation:pulse 2s ease infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(1.6);} }
+  .hero h1 {
+    font-family: 'DM Serif Display', serif; font-size: clamp(2rem, 4.5vw, 3.6rem);
+    line-height: 1.15; max-width: 620px; margin: 0 auto 18px;
+    background: linear-gradient(135deg, #fff 30%, var(--teal2) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .hero p { color:var(--muted); font-size:.95rem; max-width:440px; margin:0 auto 32px; line-height:1.75; font-weight:300; }
+  .hero-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--teal); color: #000; font-weight: 700; font-size: .75rem;
+    letter-spacing: .1em; text-transform: uppercase; padding: 13px 28px;
+    border-radius: 6px; cursor: pointer; transition: background .2s, box-shadow .2s, transform .15s;
+    border: none; text-decoration: none;
+  }
+  .hero-cta:hover { background:var(--teal2); box-shadow:0 0 30px rgba(0,194,178,.4); transform:translateY(-2px); }
+  .hero-note { margin-top: 18px; color: var(--muted); font-size: 0.72rem; letter-spacing: 0.06em; }
+  .scroll-hint {
+    position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    color: var(--muted); font-size: .68rem; letter-spacing: .08em;
+    animation: fadeIn 2s ease 1.2s both;
+  }
+  .scroll-line { width:1px; height:36px; background:linear-gradient(to bottom,var(--teal),transparent); animation:scrollLine 2s ease infinite; }
+  @keyframes scrollLine { 0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom} }
+  @keyframes fadeIn { from{opacity:0}to{opacity:1} }
+
+  /* ── NAVBAR ───────────────────────────────────── */
+  .navbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    height: 64px; display: flex; align-items: center; padding: 0 32px;
+    background: rgba(10,14,26,0.88);
+    backdrop-filter: blur(24px) saturate(160%);
+    border-bottom: 1px solid var(--border);
+    transition: background .3s;
+  }
+  .navbar.scrolled { background: rgba(10,14,26,0.98); }
+
+  .nav-logo { display:flex; align-items:center; gap:9px; text-decoration:none; flex-shrink:0; margin-right:28px; }
+  .logo-mark {
+    width:32px; height:32px; background:linear-gradient(135deg,var(--teal),#005fa3);
+    border-radius:7px; display:flex; align-items:center; justify-content:center;
+    font-family:'DM Serif Display',serif; font-size:.95rem; color:#fff;
+  }
+  .logo-text { font-family:'DM Serif Display',serif; font-size:1.1rem; color:var(--white); }
+
+  .nav-links { display:flex; align-items:center; gap:0; flex:1; list-style:none; }
+
+  .nav-item { position: relative; }
+
+  .nav-trigger {
+    display:flex; align-items:center; gap:4px; padding:7px 11px;
+    font-size:.73rem; font-weight:500; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--muted); cursor:pointer; border-radius:6px;
+    transition:color .2s, background .2s; white-space:nowrap;
+    user-select:none; border:none; background:none; font-family:inherit;
+  }
+  .nav-trigger svg { transition:transform .22s; flex-shrink:0; }
+  .nav-item:hover .nav-trigger { color:var(--white); background:rgba(255,255,255,0.05); }
+  .nav-item:hover .nav-trigger svg { transform:rotate(180deg); }
+
+  /* ── SOLUTIONS MEGA (two-panel) ──────────────── */
+  .mega {
+    position: fixed; top: 64px; left: 0; right: 0;
+    background: var(--navy2); border-bottom: 1px solid var(--border);
+    box-shadow: 0 30px 80px rgba(0,0,0,.5), var(--glow);
+    opacity: 0; pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity .22s ease, transform .22s ease;
+    display: flex;
+  }
+  .nav-item:hover .mega { opacity:1; pointer-events:all; transform:translateY(0); }
+
+  /* Left sidebar */
+  .sol-sidebar {
+    width: 230px; flex-shrink: 0;
+    background: var(--navy3);
+    border-right: 1px solid var(--border);
+    padding: 24px 0 28px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .sol-sidebar-label {
+    font-size: .57rem; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--teal); font-weight: 700;
+    padding: 0 20px 12px;
+    border-bottom: 1px solid rgba(0,194,178,0.1);
+    margin-bottom: 6px;
+  }
+  .sol-tab {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 20px;
+    font-size: .84rem; color: var(--muted);
+    cursor: default; transition: color .15s, background .15s;
+    border-left: 2px solid transparent;
+  }
+  .sol-tab .tab-icon {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: rgba(255,255,255,0.04);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0; transition: background .15s;
+  }
+  .sol-tab:hover, .sol-tab.active {
+    color: var(--white);
+    background: rgba(255,255,255,0.04);
+    border-left-color: var(--teal);
+  }
+  .sol-tab:hover .tab-icon, .sol-tab.active .tab-icon { background: rgba(0,194,178,0.12); }
+  .sol-tab .arrow { margin-left: auto; font-size: .8rem; color: var(--teal); opacity: 0; transition: opacity .15s; }
+  .sol-tab:hover .arrow, .sol-tab.active .arrow { opacity: 1; }
+
+  /* Right panels */
+  .sol-panels { flex: 1; padding: 28px 36px; min-height: 260px; }
+  .sol-panel { display: none; }
+  .sol-panel.active { display: flex; gap: 0; }
+  .sol-panel-col { display: flex; flex-direction: column; flex: 1; }
+
+  /* Shared col styles */
+  .mega-col {
+    flex: 1; padding: 0 24px;
+    border-right: 1px solid var(--border);
+  }
+  .mega-col:first-child { padding-left: 0; }
+  .mega-col:last-child { border-right: none; padding-right: 0; }
+
+  .mega-col-title {
+    font-size: .6rem; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--teal); font-weight: 700;
+    padding-bottom: 10px; margin-bottom: 8px;
+    border-bottom: 1px solid rgba(0,194,178,0.15);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .mega-col-title .col-icon {
+    width: 20px; height: 20px; background: rgba(0,194,178,0.12); border-radius: 5px;
+    display: flex; align-items: center; justify-content: center; font-size: 10px;
+  }
+
+  .mega-link {
+    display: flex; align-items: flex-start; gap: 0;
+    padding: 6px 0; color: var(--muted); text-decoration: none;
+    font-size: .82rem; font-weight: 400; line-height: 1.35;
+    transition: color .15s, padding-left .15s; cursor: default;
+  }
+  .mega-link::before {
+    content: '—'; font-size: .63rem; color: rgba(0,194,178,0.3);
+    margin-right: 8px; margin-top: 2px; flex-shrink: 0; transition: color .15s;
+  }
+  .mega-link:hover { color: var(--white); padding-left: 4px; }
+  .mega-link:hover::before { color: var(--teal); }
+
+  /* Regulatory footer bar */
+  .reg-bar {
+    grid-column: 1 / -1;
+    margin-top: 18px; padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .reg-bar-label {
+    font-size: .6rem; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--teal); font-weight: 700;
+    display: flex; align-items: center; gap: 7px; white-space: nowrap;
+  }
+  .reg-bar-label .col-icon {
+    width: 20px; height: 20px; background: rgba(0,194,178,0.12); border-radius: 5px;
+    display: flex; align-items: center; justify-content: center; font-size: 10px;
+  }
+  .reg-bar-desc { font-size: .72rem; color: var(--muted); font-weight: 300; }
+  .reg-bar-link {
+    margin-left: auto; font-size: .75rem; color: var(--teal2); text-decoration: none;
+    white-space: nowrap; transition: opacity .15s;
+  }
+  .reg-bar-link:hover { opacity: .7; }
+
+  /* ── SIMPLE MEGA (Platform, Partners) ───────── */
+  .simple-mega {
+    position: fixed; top: 64px; left: 0; right: 0;
+    background: var(--navy2); border-bottom: 1px solid var(--border);
+    box-shadow: 0 30px 80px rgba(0,0,0,.5), var(--glow);
+    padding: 32px 48px 36px; display: flex; gap: 0;
+    opacity: 0; pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .nav-item:hover .simple-mega { opacity:1; pointer-events:all; transform:translateY(0); }
+
+  /* tag */
+  .tag {
+    display: inline-flex; font-size: .56rem; letter-spacing: .08em; text-transform: uppercase;
+    background: rgba(0,194,178,0.12); color: var(--teal2); border: 1px solid rgba(0,194,178,0.25);
+    border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; white-space: nowrap;
+  }
+  .tag.external { background:rgba(150,100,255,0.1); color:#b39dff; border-color:rgba(150,100,255,0.25); }
+
+  /* ── SIMPLE DROPDOWN (Resources, Company) ────── */
+  .dropdown {
+    position: absolute; top: calc(100% + 10px);
+    background: var(--navy2); border: 1px solid var(--border);
+    border-top: none; border-radius: 0 0 12px 12px; padding: 8px;
+    opacity: 0; pointer-events: none; transform: translateY(-4px);
+    transition: opacity .2s ease, transform .2s ease;
+    box-shadow: 0 24px 60px rgba(0,0,0,.45), var(--glow);
+    min-width: 230px; z-index: 999;
+  }
+  .nav-item:hover .dropdown { opacity:1; pointer-events:all; transform:translateY(0); }
+  .dd-link {
+    display: flex; align-items: center; gap: 9px; padding: 9px 12px;
+    border-radius: 7px; color: var(--muted); text-decoration: none; font-size: .83rem;
+    transition: color .15s, background .15s; cursor: default;
+  }
+  .dd-link:hover { color:var(--white); background:rgba(255,255,255,0.05); }
+  .dd-link .ico {
+    width: 26px; height: 26px; background: rgba(255,255,255,0.04);
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; flex-shrink: 0; transition: background .15s;
+  }
+  .dd-link:hover .ico { background: rgba(0,194,178,0.12); }
+  .dd-sep { height: 1px; background: var(--border); margin: 5px 8px; }
+  .dd-label { font-size:.58rem; letter-spacing:.14em; text-transform:uppercase; color:var(--teal); padding:8px 12px 3px; font-weight:600; }
+
+  /* ── NAV RIGHT ────────────────────────────────── */
+  .nav-right { display:flex; align-items:center; gap:10px; margin-left:auto; flex-shrink:0; }
+  .btn-demo {
+    display: inline-flex; align-items: center;
+    background: transparent; color: var(--teal); border: 1px solid rgba(0,194,178,0.35);
+    font-size: .7rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+    padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: all .2s; font-family: inherit;
+  }
+  .btn-demo:hover { background:rgba(0,194,178,0.08); border-color:var(--teal); }
+  .btn-contact {
+    display: inline-flex; align-items: center;
+    background: var(--teal); color: #000;
+    font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    padding: 9px 18px; border-radius: 6px; cursor: pointer;
+    transition: background .2s, box-shadow .2s, transform .15s; border: none; font-family: inherit;
+  }
+  .btn-contact:hover { background:var(--teal2); box-shadow:0 0 20px rgba(0,194,178,.35); transform:translateY(-1px); }
+
+  /* hover bridge */
+  .nav-item::after { content:''; position:absolute; bottom:-10px; left:0; right:0; height:10px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════ -->
+<!--  NAVBAR                                       -->
+<!-- ══════════════════════════════════════════════ -->
+<nav class="navbar" id="navbar">
+
+  <a href="#" class="nav-logo">
+    <div class="logo-mark">R</div>
+    <span class="logo-text">RetinAI</span>
+  </a>
+
+  <ul class="nav-links">
+
+    <!-- ① SOLUTIONS ─── two-panel Veeva style ──── -->
+    <li class="nav-item" style="position:relative;">
+      <button class="nav-trigger">
+        Solutions
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+
+      <div class="mega">
+
+        <!-- Left sidebar -->
+        <div class="sol-sidebar">
+          <div class="sol-sidebar-label">By Audience</div>
+
+          <div class="sol-tab active" data-panel="pharma">
+            <span class="tab-icon">🔬</span>
+            For Pharma &amp; Biotech
+            <span class="arrow">›</span>
+          </div>
+          <div class="sol-tab" data-panel="cro">
+            <span class="tab-icon">🏢</span>
+            For CROs
+            <span class="arrow">›</span>
+          </div>
+          <div class="sol-tab" data-panel="clinics">
+            <span class="tab-icon">🏥</span>
+            For Clinics &amp; Hospitals
+            <span class="arrow">›</span>
+          </div>
+          <div class="sol-tab" data-panel="academia" style="opacity:0.5;">
+            <span class="tab-icon">🎓</span>
+            Academia &amp; Researchers
+            <span style="margin-left:auto; font-size:.58rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:4px; padding:1px 6px; white-space:nowrap;">Soon</span>
+          </div>
+        </div>
+
+        <!-- Right panels -->
+        <div class="sol-panels">
+
+          <!-- PHARMA -->
+          <div class="sol-panel active" id="panel-pharma" style="flex-direction:column;">
+            <div style="display:flex; flex:1;">
+              <div class="mega-col" style="padding-left:0;">
+                <div class="mega-col-title"><span class="col-icon">🧪</span>Clinical R&amp;D</div>
+                <a href="#" class="mega-link">Candidate &amp; Patient Identification</a>
+                <a href="#" class="mega-link">Clinical Trial Conduct &amp; Image Management</a>
+                <a href="#" class="mega-link">Interim Post-Hoc Exploratory Analysis</a>
+              </div>
+              <div class="mega-col" style="border-right:none;">
+                <div class="mega-col-title"><span class="col-icon">📈</span>Commercial &amp; Market Access</div>
+                <a href="#" class="mega-link">Real-World Evidence</a>
+                <a href="#" class="mega-link">Analysis Projects</a>
+                <a href="#" class="mega-link">Companion Diagnostics</a>
+              </div>
+            </div>
+            <div class="reg-bar">
+              <span class="reg-bar-label"><span class="col-icon">✅</span>Regulatory &amp; Validation</span>
+              <span class="reg-bar-desc">Cross-functional — applies to both Clinical R&amp;D and Commercial teams</span>
+              <a href="#" class="reg-bar-link">View page →</a>
+            </div>
+          </div>
+
+          <!-- CRO -->
+          <div class="sol-panel" id="panel-cro">
+            <div class="mega-col" style="padding-left:0; flex:0 0 280px; border-right:none;">
+              <a href="#" class="mega-link">Ophthalmology Business Units</a>
+              <a href="#" class="mega-link">Reading Center Augmentation</a>
+              <a href="#" class="mega-link">Biostatistics &amp; Analysis</a>
+              <a href="#" class="mega-link">Patient Recruitment &amp; Candidate ID</a>
+              <a href="#" class="mega-link">Real-World Evidence</a>
+            </div>
+          </div>
+
+          <!-- CLINICS -->
+          <div class="sol-panel" id="panel-clinics" style="flex-direction:column;">
+            <div style="display:flex; flex:1;">
+              <div class="mega-col" style="padding-left:0;">
+                <div class="mega-col-title"><span class="col-icon">👁️</span>Ophthalmologists &amp; Retinal Specialists</div>
+                <a href="#" class="mega-link">AI-Assisted Diagnosis &amp; Second Read</a>
+                <a href="#" class="mega-link">Patient Monitoring &amp; Follow-up</a>
+                <a href="#" class="mega-link">Patient Engagement &amp; Reporting</a>
+              </div>
+              <div class="mega-col">
+                <div class="mega-col-title"><span class="col-icon">🩺</span>Optometrists</div>
+                <a href="#" class="mega-link">AI-Assisted Screening</a>
+                <a href="#" class="mega-link">Patient Monitoring &amp; Alerts</a>
+                <a href="#" class="mega-link">Referral Management</a>
+                <a href="#" class="mega-link">Patient Engagement &amp; Reporting</a>
+              </div>
+              <div class="mega-col" style="border-right:none;">
+                <div class="mega-col-title"><span class="col-icon">🏥</span>Hospital Networks &amp; Chains</div>
+                <a href="#" class="mega-link">Population Screening Programs</a>
+                <a href="#" class="mega-link">Multi-Site Data Management</a>
+                <a href="#" class="mega-link">Workflow &amp; System Integration</a>
+                <a href="#" class="mega-link">Performance Analytics</a>
+              </div>
+            </div>
+
+            <!-- Shared use cases strip -->
+            <div style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border); display:flex; gap:12px;">
+              <div style="flex:1; background:rgba(0,194,178,0.05); border:1px solid rgba(0,194,178,0.12); border-radius:8px; padding:12px 14px; display:flex; gap:12px; align-items:flex-start;">
+                <span style="font-size:1.1rem; flex-shrink:0; margin-top:1px;">🗂️</span>
+                <div>
+                  <div style="font-size:.72rem; font-weight:600; color:var(--white); margin-bottom:3px;">Access &amp; Navigate your Patient Data in a Single Platform</div>
+                  <div style="font-size:.71rem; color:var(--muted); font-weight:300; line-height:1.5;">View all OCTs, Fundus images, DICOM datasets, PDFs and more in one place — no multiple viewers needed.</div>
+                </div>
+              </div>
+              <div style="flex:1; background:rgba(0,194,178,0.05); border:1px solid rgba(0,194,178,0.12); border-radius:8px; padding:12px 14px; display:flex; gap:12px; align-items:flex-start;">
+                <span style="font-size:1.1rem; flex-shrink:0; margin-top:1px;">✨</span>
+                <div>
+                  <div style="font-size:.72rem; font-weight:600; color:var(--white); margin-bottom:3px;">Upload your Clinic Data and Let the Magic Begin</div>
+                  <div style="font-size:.71rem; color:var(--muted); font-weight:300; line-height:1.5;">Data is automatically harmonised, structured at scale, and processed in real time with AI for biomarker identification.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ACADEMIA (placeholder) -->
+          <div class="sol-panel" id="panel-academia">
+            <div class="mega-col" style="padding-left:0; border-right:none; display:flex; align-items:center; justify-content:center; min-height:160px;">
+              <div style="text-align:center; color:var(--muted);">
+                <div style="font-size:2rem; margin-bottom:12px; opacity:0.4;">🎓</div>
+                <div style="font-size:.8rem; font-weight:500; color:var(--white); margin-bottom:6px;">Coming Soon</div>
+                <div style="font-size:.75rem; font-weight:300; max-width:260px; line-height:1.6;">Content for Academia &amp; Researchers is being defined — watch this space.</div>
+              </div>
+            </div>
+          </div>
+      </div><!-- /mega -->
+    </li>
+
+    <!-- ② PLATFORM ─────────────────────────────── -->
+    <li class="nav-item" style="position:relative;">
+      <button class="nav-trigger">
+        Platform
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="simple-mega">
+        <div class="mega-col" style="flex:0 0 190px; padding-left:0;">
+          <div class="mega-col-title"><span class="col-icon">⚡</span>Overview</div>
+          <a href="#" class="mega-link">RetinAI Discovery Platform</a>
+          <a href="#" class="mega-link">Supported Device Manufacturers</a>
+          <a href="#" class="mega-link">Security &amp; Compliance</a>
+          <a href="#" class="mega-link">Integrations &amp; APIs</a>
+        </div>
+        <div class="mega-col">
+          <div class="mega-col-title"><span class="col-icon">🫀</span>Disease Areas</div>
+          <a href="#" class="mega-link" style="padding-left:8px;">iAMD / Dry AMD / GA</a>
+          <a href="#" class="mega-link" style="padding-left:8px;">nAMD</a>
+          <a href="#" class="mega-link" style="padding-left:8px;">DR</a>
+          <a href="#" class="mega-link" style="padding-left:8px;">DME</a>
+          <a href="#" class="mega-link" style="padding-left:8px;">Glaucoma</a>
+          <a href="#" class="mega-link" style="padding-left:8px;">Other Retinal Conditions</a>
+          <a href="#" class="mega-link" style="padding-left:8px;">Oculomics<span class="tag external">↗ Ikerian</span></a>
+        </div>
+        <div class="mega-col" style="border-right:none;">
+          <div class="mega-col-title"><span class="col-icon">🤖</span>AI Models &amp; Algorithms</div>
+          <a href="#" class="mega-link">RetinAI OCT Atlas®</a>
+          <a href="#" class="mega-link">Advanced OCT Segmentation</a>
+          <a href="#" class="mega-link">Macula Biomarkers</a>
+          <a href="#" class="mega-link">Geographic Atrophy Progression</a>
+          <a href="#" class="mega-link">LuxIA®</a>
+        </div>
+      </div>
+    </li>
+
+    <!-- ③ PARTNERS ───────────────────────────────── -->
+    <li class="nav-item" style="position:relative;">
+      <button class="nav-trigger">
+        Partners
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="simple-mega">
+        <div class="mega-col" style="flex:0 0 210px; padding-left:0;">
+          <div class="mega-col-title"><span class="col-icon">🤝</span>Partner Types</div>
+          <a href="#" class="mega-link">Technology Partners</a>
+          <a href="#" class="mega-link">Data &amp; Network Partners</a>
+          <a href="#" class="mega-link">Channel &amp; Distribution</a>
+          <a href="#" class="mega-link">Reading Center Partners</a>
+          <a href="#" class="mega-link">Academic Partners</a>
+        </div>
+        <div class="mega-col" style="flex:0 0 180px; border-right:none;">
+          <div class="mega-col-title"><span class="col-icon">✨</span>Partner Program</div>
+          <a href="#" class="mega-link" style="color:var(--teal2);">Become a Partner →</a>
+        </div>
+      </div>
+    </li>
+
+    <!-- ④ RESOURCES ──────────────────────────────── -->
+    <li class="nav-item" style="position:relative;">
+      <button class="nav-trigger">
+        Resources
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="dropdown" style="position:absolute; top:calc(100% + 10px); left:0;">
+        <div class="dd-label">Content</div>
+        <a href="#" class="dd-link"><span class="ico">📋</span>Case Studies</a>
+        <a href="#" class="dd-link"><span class="ico">📄</span>Whitepapers &amp; Reports</a>
+        <a href="#" class="dd-link"><span class="ico">🎥</span>Webinars &amp; Events</a>
+        <div class="dd-sep"></div>
+        <a href="#" class="dd-link"><span class="ico">✍️</span>Blog &amp; Articles</a>
+        <a href="#" class="dd-link"><span class="ico">🔬</span>Publications &amp; Research</a>
+      </div>
+    </li>
+
+    <!-- ⑤ COMPANY ────────────────────────────────── -->
+    <li class="nav-item" style="position:relative;">
+      <button class="nav-trigger">
+        Company
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="dropdown" style="position:absolute; top:calc(100% + 10px); right:0; left:auto;">
+        <div class="dd-label">About</div>
+        <a href="#" class="dd-link"><span class="ico">🏢</span>About Us &amp; Our Story</a>
+        <a href="#" class="dd-link"><span class="ico">👓</span>EssilorLuxottica</a>
+        <a href="#" class="dd-link"><span class="ico">👥</span>Team</a>
+        <div class="dd-sep"></div>
+        <a href="#" class="dd-link"><span class="ico">📰</span>News &amp; Press</a>
+        <a href="#" class="dd-link"><span class="ico">💼</span>Careers</a>
+        <a href="#" class="dd-link"><span class="ico">✉️</span>Contact</a>
+      </div>
+    </li>
+
+  </ul>
+
+  <div class="nav-right">
+    <button class="btn-demo">Get a Demo</button>
+    <button class="btn-contact">Contact →</button>
+  </div>
+
+</nav>
+
+<!-- ══════════════════════════════════════════════ -->
+<!--  HERO                                         -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="hero">
+  <div>
+    <div class="hero-badge"><span></span>Navigation Prototype v3 — Solutions Architecture</div>
+    <h1>Intelligence in<br>Ophthalmology</h1>
+    <p>Hover over <strong style="-webkit-text-fill-color:var(--teal2); color:var(--teal2);">Solutions</strong> then slide between audiences in the left panel.</p>
+    <a href="#" class="hero-cta">Get Started →</a>
+    <div class="hero-note">↑ Hover the nav items to see the menus</div>
+  </div>
+  <div class="scroll-hint">
+    <div class="scroll-line"></div>
+    scroll
+  </div>
+</div>
+
+<script>
+  // Scroll effect
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20);
+  });
+
+  // Solutions sidebar tabs → switch panel on hover
+  document.querySelectorAll('.sol-tab').forEach(tab => {
+    tab.addEventListener('mouseenter', () => {
+      document.querySelectorAll('.sol-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.sol-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      const panel = document.getElementById('panel-' + tab.dataset.panel);
+      if (panel) panel.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
