@@ -102,8 +102,8 @@
     user-select:none; border:none; background:none; font-family:inherit;
   }
   .nav-trigger svg { transition:transform .22s; flex-shrink:0; }
-  .nav-item:hover .nav-trigger { color:var(--white); background:rgba(255,255,255,0.05); }
-  .nav-item:hover .nav-trigger svg { transform:rotate(180deg); }
+  .nav-item.open .nav-trigger { color:var(--white); background:rgba(255,255,255,0.05); }
+  .nav-item.open .nav-trigger svg { transform:rotate(180deg); }
 
   /* ── SOLUTIONS MEGA (two-panel) ──────────────── */
   .mega {
@@ -115,7 +115,8 @@
     transition: opacity .22s ease, transform .22s ease;
     display: flex;
   }
-  .nav-item:hover .mega { opacity:1; pointer-events:all; transform:translateY(0); }
+  /* opened via JS */
+  .nav-item.open .mega { opacity:1; pointer-events:all; transform:translateY(0); }
 
   /* Left sidebar */
   .sol-sidebar {
@@ -226,7 +227,7 @@
     transform: translateY(-6px);
     transition: opacity .22s ease, transform .22s ease;
   }
-  .nav-item:hover .simple-mega { opacity:1; pointer-events:all; transform:translateY(0); }
+  .nav-item.open .simple-mega { opacity:1; pointer-events:all; transform:translateY(0); }
 
   /* tag */
   .tag {
@@ -246,7 +247,7 @@
     box-shadow: 0 24px 60px rgba(0,0,0,.45), var(--glow);
     min-width: 230px; z-index: 999;
   }
-  .nav-item:hover .dropdown { opacity:1; pointer-events:all; transform:translateY(0); }
+  .nav-item.open .dropdown { opacity:1; pointer-events:all; transform:translateY(0); }
   .dd-link {
     display: flex; align-items: center; gap: 9px; padding: 9px 12px;
     border-radius: 7px; color: var(--muted); text-decoration: none; font-size: .83rem;
@@ -559,6 +560,53 @@
   // Scroll effect
   window.addEventListener('scroll', () => {
     document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20);
+  });
+
+  // ── Robust hover menu system ──────────────────────
+  // Each nav-item gets a close timer. Entering either the
+  // trigger OR the menu panel cancels the timer, so the
+  // gap between them never causes a flicker.
+  const DELAY = 120; // ms before closing after mouse leaves
+  const items = document.querySelectorAll('.nav-links .nav-item');
+
+  function closeAll(except) {
+    items.forEach(item => {
+      if (item !== except) item.classList.remove('open');
+    });
+  }
+
+  items.forEach(item => {
+    let timer = null;
+
+    const open = () => {
+      clearTimeout(timer);
+      closeAll(item);
+      item.classList.add('open');
+    };
+
+    const scheduleClose = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => item.classList.remove('open'), DELAY);
+    };
+
+    // Trigger button
+    const trigger = item.querySelector('.nav-trigger');
+    if (trigger) {
+      trigger.addEventListener('mouseenter', open);
+      trigger.addEventListener('mouseleave', scheduleClose);
+    }
+
+    // Menu panel (mega / simple-mega / dropdown)
+    const panel = item.querySelector('.mega, .simple-mega, .dropdown');
+    if (panel) {
+      panel.addEventListener('mouseenter', () => clearTimeout(timer));
+      panel.addEventListener('mouseleave', scheduleClose);
+    }
+  });
+
+  // Close all when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.nav-item')) closeAll(null);
   });
 
   // Solutions sidebar tabs → switch panel on hover
