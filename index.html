@@ -669,9 +669,8 @@
 <!-- ══════════════════════ SWITCHER ══════════════════════ -->
 <div class="switcher">
   <span class="sw-label">Layout</span>
-  <button class="sw-btn active" data-mode="a">A — Left Sidebar</button>
-  <button class="sw-btn" data-mode="b">B — All at once</button>
-  <button class="sw-btn" data-mode="c">C — Horizontal tabs</button>
+  <button class="sw-btn active" data-mode="b">A — All at once</button>
+  <button class="sw-btn" data-mode="c">B — Horizontal tabs</button>
 </div>
 
 <script>
@@ -680,23 +679,19 @@
   const menuB = document.getElementById('menu-b');
   const menuC = document.getElementById('menu-c');
   const swBtns = document.querySelectorAll('.sw-btn');
-  let currentMode = 'a';
+  let currentMode = 'b';
 
   function setMode(m) {
     currentMode = m;
-    // Hide all
     menuA.style.display = 'none';
     menuB.style.display = 'none';
     menuC.style.display = 'none';
-    // Show selected
-    if (m === 'a') menuA.style.display = 'flex';
     if (m === 'b') menuB.style.display = 'block';
     if (m === 'c') menuC.style.display = 'flex';
     swBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === m));
-    // Close menu if open
     document.getElementById('sol-item').classList.remove('open');
   }
-  setMode('a');
+  setMode('b');
   swBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
 
   // ── Robust hover for all nav items ───────────────
